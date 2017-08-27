@@ -5,45 +5,82 @@ import { Resizable, Charts, ChartContainer, ChartRow, YAxis, LineChart } from 'r
 import { TimeSeries } from 'pondjs';
 
 class ChartComponent extends Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            series1: null,
+            timerange: null,
+            start: null,
+            end: null
+        };
+    }
+    
     componentDidMount() {
-        const timeseries = new TimeSeries({
-            name: "Matches",
-            columns: ["time", "price", "ema1"],
-            points: [
-                [1400425947000, 52.25, 23],
-                [1400425948000, 14.44, 95],
-                [1400425949000, 26.95, 45],
-                [1400425950000, 193.11, 95]
-            ]
-        });
         
-        this.setState({
-            series1: timeseries,
-            timerange: timeseries.range()
-        });
+        const start = new Date();
+        start.setDate(start.getDate()-1);
+
+        const end = new Date();
+        
+        fetch(`http://trading.mrunia.com/points?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
+            .then((response) => {
+                if (!response.ok) {
+                    throw Error('Request for points failed');
+                }
+                // parse body as json
+                return response.json();
+            }).then((body) => {
+                // we have to do some work to get our data in the right format for our chart
+                let points = [];
+                body.result.forEach((point) => {
+                    points.push([Date.parse(point.time), point.price, point.ema1]);
+                });
+    
+                const timeseries = new TimeSeries({
+                    name: "Matches",
+                    columns: ["time", "price", "ema1"],
+                    points
+                });
+    
+                this.setState({
+                    series1: timeseries,
+                    timerange: timeseries.range(),
+                    start,
+                    end
+                });
+            });
     }
     
     render() {
-        if (this.state === null) {
+        if (this.state.series1 === null) {
             return <div>Loading...</div>
         }
         
         return (
             <Resizable>
                 <ChartContainer
-                    timeRange={this.state.timerange}
                     enablePanZoom={true}
                     onTimeRangeChanged={timerange => this.setState({ timerange })}
+                    timeRange={this.state.timerange}
+                    minTime={new Date('2017')}
+                    maxTime={new Date('2019')}
+                    onTrackerChanged={(tracker) => this.setState({tracker})}
+                    trackerPosition={this.state.tracker}
+                    /*
+                    trackerHintWidth="50"
+                    trackerHintHeight="50"
+                    trackerValues='hello'
+                    */
                 >
-                    <ChartRow height="500">
-                        <YAxis
-                            id="price"
-                            label="Price"
-                            type="linear"
-                            format="$,.2f"
-                            min={0}
-                            max={this.state.series1.max("price")}
-                        />
+                    <ChartRow 
+                        height="650"
+                        /*
+                        trackerTime={this.state.tracker}
+                        trackerShowTime={true}
+                        enablePanZoom={true}
+                        */
+                    >
                         <Charts>
                             <LineChart
                                 axis="price"
@@ -56,6 +93,14 @@ class ChartComponent extends Component {
                                 columns={["ema1"]}
                             />
                         </Charts>
+                        <YAxis
+                            id="price"
+                            label="Price"
+                            type="linear"
+                            format="$,.2f"
+                            min={this.state.series1.min("price")}
+                            max={this.state.series1.max("price")}
+                        />
                     </ChartRow>
                 </ChartContainer>
             </Resizable>
