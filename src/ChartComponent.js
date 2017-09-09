@@ -74,7 +74,7 @@ class ChartComponent extends Component {
                     */
                 >
                     <ChartRow 
-                        height="650"
+                        height="550"
                         /*
                         trackerTime={this.state.tracker}
                         trackerShowTime={true}
